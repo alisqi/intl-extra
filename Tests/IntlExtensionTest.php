@@ -50,6 +50,11 @@ class IntlExtensionTest extends TestCase
         );
 
         self::assertEquals($expected, $ext->formatDateTime($this->twig, $input));
+
+        $this->twig->setLoader(new ArrayLoader(['test.twig' => "{{ inputDateTime|format_datetime() }}"]));
+        $this->twig->addExtension($ext);
+        $rendered = $this->twig->render('test.twig', ['inputDateTime' => $input]);
+        self::assertStringContainsString($expected, $rendered);
     }
 
     public function getTestData(): array {
