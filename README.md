@@ -28,3 +28,10 @@ This package is a Twig extension that provides the following:
 [10]: https://twig.symfony.com/format_datetime
 [11]: https://twig.symfony.com/format_date
 [12]: https://twig.symfony.com/format_time
+
+## AlisQI fork
+
+This repository was forked from `twigphp/intl-extra` in order to make `format_date`, `format_time` and `format_datetime`
+use the 'prototype' values of `IntlDateFormatter` when `IntlExtension` is instantiated with a custom formatter.
+
+See: [https://github.com/twigphp/Twig/issues/3568](https://github.com/twigphp/Twig/issues/3568)
