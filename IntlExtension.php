@@ -277,7 +277,7 @@ final class IntlExtension extends AbstractExtension
      * @param \DateTimeInterface|string|null  $date     A date or null to use the current time
      * @param \DateTimeZone|string|false|null $timezone The target timezone, null to use the default, false to leave unchanged
      */
-    public function formatDateTime(Environment $env, $date, ?string $dateFormat = 'medium', ?string $timeFormat = 'medium', string $pattern = '', $timezone = null, string $calendar = 'gregorian', string $locale = null): string
+    public function formatDateTime(Environment $env, $date, ?string $dateFormat = null, ?string $timeFormat = null, string $pattern = '', $timezone = null, string $calendar = 'gregorian', string $locale = null): string
     {
         $date = \twig_date_converter($env, $date, $timezone);
 
@@ -300,7 +300,7 @@ final class IntlExtension extends AbstractExtension
      * @param \DateTimeInterface|string|null  $date     A date or null to use the current time
      * @param \DateTimeZone|string|false|null $timezone The target timezone, null to use the default, false to leave unchanged
      */
-    public function formatDate(Environment $env, $date, ?string $dateFormat = 'medium', string $pattern = '', $timezone = null, string $calendar = 'gregorian', string $locale = null): string
+    public function formatDate(Environment $env, $date, ?string $dateFormat = null, string $pattern = '', $timezone = null, string $calendar = 'gregorian', string $locale = null): string
     {
         return $this->formatDateTime($env, $date, $dateFormat, 'none', $pattern, $timezone, $calendar, $locale);
     }
@@ -309,7 +309,7 @@ final class IntlExtension extends AbstractExtension
      * @param \DateTimeInterface|string|null  $date     A date or null to use the current time
      * @param \DateTimeZone|string|false|null $timezone The target timezone, null to use the default, false to leave unchanged
      */
-    public function formatTime(Environment $env, $date, ?string $timeFormat = 'medium', string $pattern = '', $timezone = null, string $calendar = 'gregorian', string $locale = null): string
+    public function formatTime(Environment $env, $date, ?string $timeFormat = null, string $pattern = '', $timezone = null, string $calendar = 'gregorian', string $locale = null): string
     {
         return $this->formatDateTime($env, $date, 'none', $timeFormat, $pattern, $timezone, $calendar, $locale);
     }
@@ -330,22 +330,29 @@ final class IntlExtension extends AbstractExtension
         $timeFormatValue = self::DATE_FORMATS[$timeFormat] ?? null;
 
         if ($this->dateFormatterPrototype) {
+            if (
+                $dateFormat === null && $timeFormat === null &&                              // only override if both are null, otherwise respect given format first
+                ($locale === null || $locale === $this->dateFormatterPrototype->getLocale()) // the pattern could have a different locale than the one specified in which case we should also ignore the pattern.
+            ) {
+                $pattern = $pattern ?: $this->dateFormatterPrototype->getPattern();
+            }
             $dateFormatValue = $dateFormatValue ?: $this->dateFormatterPrototype->getDateType();
             $timeFormatValue = $timeFormatValue ?: $this->dateFormatterPrototype->getTimeType();
             $timezone = $timezone ?: $this->dateFormatterPrototype->getTimeZone()->toDateTimeZone();
             $calendar = $calendar ?: $this->dateFormatterPrototype->getCalendar();
-            $pattern = $pattern ?: $this->dateFormatterPrototype->getPattern();
             $locale = $locale ?: $this->dateFormatterPrototype->getLocale();
-        }
-
-        if (null === $locale) {
-            $locale = \Locale::getDefault();
+        } else {
+            if (null === $dateFormatValue) {
+                $dateFormatValue = \IntlDateFormatter::MEDIUM;
+            }
+            if (null === $timeFormatValue) {
+                $timeFormatValue = \IntlDateFormatter::MEDIUM;
+            }
         }
 
         $timezoneName = $timezone ? $timezone->getName() : '(none)';
 
         $hash = $locale.'|'.$dateFormatValue.'|'.$timeFormatValue.'|'.$timezoneName.'|'.$calendar.'|'.$pattern;
-
         if (!isset($this->dateFormatters[$hash])) {
             $this->dateFormatters[$hash] = new \IntlDateFormatter($locale, $dateFormatValue, $timeFormatValue, $timezone, $calendar, $pattern);
         }
