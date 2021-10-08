@@ -35,3 +35,6 @@ This repository was forked from `twigphp/intl-extra` in order to make `format_da
 use the 'prototype' values of `IntlDateFormatter` when `IntlExtension` is instantiated with a custom formatter.
 
 See: [https://github.com/twigphp/Twig/issues/3568](https://github.com/twigphp/Twig/issues/3568)
+
+Added the following functions:
+* `format_datetime_pretty` filter: formats a date to time of day, 'Today', 'Yesterday', or a date.

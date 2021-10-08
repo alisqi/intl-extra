@@ -11,6 +11,8 @@
 
 namespace Twig\Extra\Intl\Tests;
 
+use Lcobucci\Clock\Clock;
+use Lcobucci\Clock\FrozenClock;
 use PHPUnit\Framework\TestCase;
 use Twig\Environment;
 use Twig\Extension\CoreExtension;
@@ -49,7 +51,8 @@ class IntlExtensionTest extends TestCase
      * Tests that the extension handles IntlDateFormatter settings correctly when calling format_datetime without arguments
      * @dataProvider getIntlDateFormatterData
      */
-    public function testIntlDateFormatter(string $targetLocale, string $targetTimezone, ?string $dateFormat, ?string $timeFormat, string $input, string $expected): void {
+    public function testIntlDateFormatter(string $targetLocale, string $targetTimezone, ?string $dateFormat, ?string $timeFormat, string $input, string $expected): void
+    {
         $ext = new IntlExtension(
             (new \IntlDateFormatter(
                 $targetLocale, self::$dateFormats[$dateFormat], self::$dateFormats[$timeFormat],
@@ -67,7 +70,8 @@ class IntlExtensionTest extends TestCase
      * Tests that the IntlDateFormatter settings are always overridden by the arguments given to format_datetime
      * @dataProvider getIntlDateFormatterData
      */
-    public function testIntlDateFormatterOverride(string $targetLocale, string $targetTimezone, ?string $dateFormat, ?string $timeFormat, string $input, string $expected): void {
+    public function testIntlDateFormatterOverride(string $targetLocale, string $targetTimezone, ?string $dateFormat, ?string $timeFormat, string $input, string $expected): void
+    {
         $ext = new IntlExtension(
             (new \IntlDateFormatter(
                 'ru', \IntlDateFormatter::FULL, \IntlDateFormatter::FULL,
@@ -86,7 +90,8 @@ class IntlExtensionTest extends TestCase
      * Test that the pattern from the IntlDateFormatter will not override dateFormat or timeFormat if one of them is null.
      * @dataProvider getIntlDateFormatterOverrideData
      */
-    public function testIntlDateFormatterDateOrTimeOverride(string $formatDateTimeArgs, string $input, string $expected): void {
+    public function testIntlDateFormatterDateOrTimeOverride(string $formatDateTimeArgs, string $input, string $expected): void
+    {
         $ext = new IntlExtension(
             (new \IntlDateFormatter(
                 'es', \IntlDateFormatter::FULL, \IntlDateFormatter::FULL,
@@ -96,6 +101,27 @@ class IntlExtensionTest extends TestCase
         $this->twig->addExtension($ext);
 
         $this->twig->setLoader(new ArrayLoader(['test.twig' => "{{ inputDateTime|format_datetime($formatDateTimeArgs) }}"]));
+        self::assertStringContainsString($expected, $this->twig->render('test.twig', ['inputDateTime' => $input]));
+    }
+
+    /**
+     * @dataProvider getDateTimePrettyData
+     *
+     * @param \DateTimeInterface|string|null  $input     A date or null to use the current time
+     */
+    public function testIntlDateFormatterDateTimePretty(\DateTimeImmutable $now, $input, string $expected): void
+    {
+        $ext = new IntlExtension(
+            (new \IntlDateFormatter(
+                'en', \IntlDateFormatter::FULL, \IntlDateFormatter::FULL,
+                new \DateTimeZone('UTC')
+            )),
+            null,
+            new FrozenClock($now)
+        );
+        $this->twig->addExtension($ext);
+
+        $this->twig->setLoader(new ArrayLoader(['test.twig' => "{{ inputDateTime|format_datetime_pretty() }}"]));
         self::assertStringContainsString($expected, $this->twig->render('test.twig', ['inputDateTime' => $input]));
     }
 
@@ -138,7 +164,7 @@ class IntlExtensionTest extends TestCase
     }
 
     public function getIntlDateFormatterOverrideData(): array {
-        // [format_datetime function arguments, input, output]
+        // [format_datetime function arguments, input, expected]
         return [
             ["'medium', locale='en', timezone='Europe/Amsterdam'", '2020-02-22 13:37:30', 'Feb 22, 2020, 2:37:30 PM Central European Standard Time'],
             ["'medium', null, locale='en', timezone='Europe/Amsterdam'", '2020-02-22 13:37:30', 'Feb 22, 2020, 2:37:30 PM Central European Standard Time'],
@@ -147,6 +173,28 @@ class IntlExtensionTest extends TestCase
             ["dateFormat=null, timeFormat='medium', locale='en', timezone='Europe/Amsterdam'", '2020-02-22 13:37:30', 'Saturday, February 22, 2020 at 2:37:30 PM'],
             ["dateFormat=null, timeFormat='medium'", '2020-02-22 13:37:30', 'sábado, 22 de febrero de 2020, 9:37:30'],
             ["locale='en', timezone='Europe/Amsterdam'", '2020-02-22 13:37:30', 'Saturday, February 22, 2020 at 2:37:30 PM Central European Standard Time']
+        ];
+    }
+
+    public function getDateTimePrettyData(): array {
+        $now = new \DateTimeImmutable('2020-02-21 13:37:30'); // Friday
+
+        // description -> [now, input, expected]
+        return [
+            'same datetime'             => [$now, null, '1:37 PM'],
+            'convert string datetime'   => [$now, '2020-02-21 13:37:30', '1:37 PM'],
+            'future next day'           => [$now, '2020-02-22 12:37:30', '2020-02-22'],
+            'today past time'           => [$now, '2020-02-21 11:37:30', '11:37 AM'],
+            'today no time'             => [$now, '2020-02-21', 'Today'],
+            'yesterday'                 => [$now, '2020-02-20', 'Yesterday'],
+            'this week'                 => [$now, '2020-02-18', 'Tue'],
+            'older than past week'      => [$now, '2020-02-10', '2020-02-10'],
+            'handle datetime obj'       => [$now, $now, '1:37 PM'],
+            'obj future next day '      => [$now, $now->modify('+20 hours'), '2020-02-22'],
+            'obj today past time'       => [$now, $now->modify('-2 hours'), '11:37 AM'],
+            'obj yesterday'             => [$now, $now->modify('-1 day'), 'Yesterday'],
+            'obj this week'             => [$now, $now->modify('-3 days'), 'Tue'],
+            'obj older than past week'  => [$now, $now->modify('-11 days'), '2020-02-10'],
         ];
     }
 }
