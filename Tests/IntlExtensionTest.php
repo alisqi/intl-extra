@@ -175,25 +175,25 @@ class IntlExtensionTest extends TestCase
     }
 
     public function getDateTimePrettyData(): array {
-        $realNow = (new \DateTimeImmutable())->setTime(13, 37, 00);
+        $now = (new \DateTimeImmutable())->setTime(13, 37, 00);
 
         // description -> [now, input, expected]
         return [
-            'convert string datetime'   => [$realNow, $realNow->format('Y-m-d H:i:s'), '1:37 PM'],
-            'future next day'           => [$realNow, $realNow->modify('+1 day')->format('Y-m-d H:i:s'), $realNow->modify('+1 day')->format('Y-m-d')],
-            'far future'                => [$realNow, $realNow->modify('+1 month')->format('Y-m-d H:i:s'), $realNow->modify('+1 month')->format('Y-m-d')],
-            'today past time'           => [$realNow, $realNow->modify('-1 hour')->format('Y-m-d H:i:s'), '12:37 PM'],
-            'today no time'             => [$realNow, $realNow->format('Y-m-d'), 'today'],
-            'today future time'         => [$realNow, $realNow->modify('+1 hour')->format('Y-m-d H:i:s'), '2:37 PM'],
-            'yesterday no time'         => [$realNow, $realNow->modify('-1 day')->format('Y-m-d'), 'yesterday'],
-            'this week'                 => [$realNow, $realNow->modify('-3 days')->format('Y-m-d'), $realNow->modify('-3 days')->format('D')],
-            'older than past week'      => [$realNow, $realNow->modify('-14 days')->format('Y-m-d'), $realNow->modify('-14 days')->format('Y-m-d')],
-            'handle datetime obj'       => [$realNow, $realNow, '1:37 PM'],
-            'obj future next day '      => [$realNow, $realNow->modify('+1 day'), $realNow->modify('+1 day')->format('Y-m-d')],
-            'obj today past time'       => [$realNow, $realNow->modify('-2 hours'), '11:37 AM'],
-            'obj yesterday'             => [$realNow, $realNow->modify('-1 day'), 'yesterday 1:37 PM'],
-            'obj this week'             => [$realNow, $realNow->modify('-3 days'),  $realNow->modify('-3 days')->format('D')],
-            'obj older than past week'  => [$realNow, $realNow->modify('-14 days'), $realNow->modify('-14 days')->format('Y-m-d')],
+            'convert string datetime'   => [$now, $now->format('Y-m-d H:i:s'), '1:37 PM'],
+            'future next day'           => [$now, $now->modify('+1 day')->format('Y-m-d H:i:s'), $now->modify('+1 day')->format('Y-m-d')],
+            'far future'                => [$now, $now->modify('+1 month')->format('Y-m-d H:i:s'), $now->modify('+1 month')->format('Y-m-d')],
+            'today past time'           => [$now, $now->modify('-1 hour')->format('Y-m-d H:i:s'), '12:37 PM'],
+            'today no time'             => [$now, $now->format('Y-m-d'), 'today'],
+            'today future time'         => [$now, $now->modify('+1 hour')->format('Y-m-d H:i:s'), '2:37 PM'],
+            'yesterday no time'         => [$now, $now->modify('-1 day')->format('Y-m-d'), 'yesterday'],
+            'this week'                 => [$now, $now->modify('-3 days')->format('Y-m-d'), $now->modify('-3 days')->format('D')],
+            'older than past week'      => [$now, $now->modify('-14 days')->format('Y-m-d'), $now->modify('-14 days')->format('Y-m-d')],
+            'handle datetime obj'       => [$now, $now, '1:37 PM'],
+            'obj future next day '      => [$now, $now->modify('+1 day'), $now->modify('+1 day')->format('Y-m-d')],
+            'obj today past time'       => [$now, $now->modify('-2 hours'), '11:37 AM'],
+            'obj yesterday'             => [$now, $now->modify('-1 day'), 'yesterday 1:37 PM'],
+            'obj this week'             => [$now, $now->modify('-3 days'),  $now->modify('-3 days')->format('D')],
+            'obj older than past week'  => [$now, $now->modify('-14 days'), $now->modify('-14 days')->format('Y-m-d')],
         ];
     }
 }
