@@ -380,7 +380,7 @@ final class IntlExtension extends AbstractExtension
             if ($daysAgo === 0 || $daysAgo === 1) {
                 // If we don't know the time just output 'today' or 'yesterday'
                 $dayType = (new \IntlDateFormatter(
-                        $formatter->getLocale(), \IntlDateFormatter::RELATIVE_LONG, self::DATE_FORMATS['none'],
+                        $formatter->getLocale(), self::DATE_FORMATS['relative_long'], self::DATE_FORMATS['none'],
                         $formatter->getTimeZone(), $formatter->getCalendar(), ''
                 ))->format($dateTime);
 
