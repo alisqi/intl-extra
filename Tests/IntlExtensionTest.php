@@ -11,8 +11,6 @@
 
 namespace Twig\Extra\Intl\Tests;
 
-use Lcobucci\Clock\Clock;
-use Lcobucci\Clock\FrozenClock;
 use PHPUnit\Framework\TestCase;
 use Twig\Environment;
 use Twig\Extension\CoreExtension;
@@ -117,7 +115,7 @@ class IntlExtensionTest extends TestCase
                 new \DateTimeZone('UTC')
             )),
             null,
-            new FrozenClock($now)
+            IntlExtension::getDefaultPrettyFormatClosure()
         );
         $this->twig->addExtension($ext);
 
@@ -177,24 +175,25 @@ class IntlExtensionTest extends TestCase
     }
 
     public function getDateTimePrettyData(): array {
-        $now = new \DateTimeImmutable('2020-02-21 13:37:30'); // Friday
+        $realNow = (new \DateTimeImmutable())->setTime(13, 37, 00);
 
         // description -> [now, input, expected]
         return [
-            'same datetime'             => [$now, null, '1:37 PM'],
-            'convert string datetime'   => [$now, '2020-02-21 13:37:30', '1:37 PM'],
-            'future next day'           => [$now, '2020-02-22 12:37:30', '2020-02-22'],
-            'today past time'           => [$now, '2020-02-21 11:37:30', '11:37 AM'],
-            'today no time'             => [$now, '2020-02-21', 'Today'],
-            'yesterday'                 => [$now, '2020-02-20', 'Yesterday'],
-            'this week'                 => [$now, '2020-02-18', 'Tue'],
-            'older than past week'      => [$now, '2020-02-10', '2020-02-10'],
-            'handle datetime obj'       => [$now, $now, '1:37 PM'],
-            'obj future next day '      => [$now, $now->modify('+20 hours'), '2020-02-22'],
-            'obj today past time'       => [$now, $now->modify('-2 hours'), '11:37 AM'],
-            'obj yesterday'             => [$now, $now->modify('-1 day'), 'Yesterday'],
-            'obj this week'             => [$now, $now->modify('-3 days'), 'Tue'],
-            'obj older than past week'  => [$now, $now->modify('-11 days'), '2020-02-10'],
+            'convert string datetime'   => [$realNow, $realNow->format('Y-m-d H:i:s'), '1:37 PM'],
+            'future next day'           => [$realNow, $realNow->modify('+1 day')->format('Y-m-d H:i:s'), $realNow->modify('+1 day')->format('Y-m-d')],
+            'far future'                => [$realNow, $realNow->modify('+1 month')->format('Y-m-d H:i:s'), $realNow->modify('+1 month')->format('Y-m-d')],
+            'today past time'           => [$realNow, $realNow->modify('-1 hour')->format('Y-m-d H:i:s'), '12:37 PM'],
+            'today no time'             => [$realNow, $realNow->format('Y-m-d'), 'today'],
+            'today future time'         => [$realNow, $realNow->modify('+1 hour')->format('Y-m-d H:i:s'), '2:37 PM'],
+            'yesterday no time'         => [$realNow, $realNow->modify('-1 day')->format('Y-m-d'), 'yesterday'],
+            'this week'                 => [$realNow, $realNow->modify('-3 days')->format('Y-m-d'), $realNow->modify('-3 days')->format('D')],
+            'older than past week'      => [$realNow, $realNow->modify('-14 days')->format('Y-m-d'), $realNow->modify('-14 days')->format('Y-m-d')],
+            'handle datetime obj'       => [$realNow, $realNow, '1:37 PM'],
+            'obj future next day '      => [$realNow, $realNow->modify('+1 day'), $realNow->modify('+1 day')->format('Y-m-d')],
+            'obj today past time'       => [$realNow, $realNow->modify('-2 hours'), '11:37 AM'],
+            'obj yesterday'             => [$realNow, $realNow->modify('-1 day'), 'yesterday 1:37 PM'],
+            'obj this week'             => [$realNow, $realNow->modify('-3 days'),  $realNow->modify('-3 days')->format('D')],
+            'obj older than past week'  => [$realNow, $realNow->modify('-14 days'), $realNow->modify('-14 days')->format('Y-m-d')],
         ];
     }
 }

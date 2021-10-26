@@ -27,12 +27,19 @@ use Twig\TwigFunction;
 
 final class IntlExtension extends AbstractExtension
 {
+    /**
+     * Note that the RELATIVE_ types only result in a valid formatted when used on `dateType`
+     */
     private const DATE_FORMATS = [
         'none' => \IntlDateFormatter::NONE,
         'short' => \IntlDateFormatter::SHORT,
         'medium' => \IntlDateFormatter::MEDIUM,
         'long' => \IntlDateFormatter::LONG,
         'full' => \IntlDateFormatter::FULL,
+        'relative_short' => PHP_MAJOR_VERSION >= 8 ? \IntlDateFormatter::RELATIVE_SHORT : \IntlDateFormatter::SHORT,
+        'relative_medium' => PHP_MAJOR_VERSION >= 8 ? \IntlDateFormatter::RELATIVE_MEDIUM : \IntlDateFormatter::MEDIUM,
+        'relative_long' => PHP_MAJOR_VERSION >= 8 ? \IntlDateFormatter::RELATIVE_LONG : \IntlDateFormatter::LONG,
+        'relative_full' => PHP_MAJOR_VERSION >= 8 ? \IntlDateFormatter::RELATIVE_FULL : \IntlDateFormatter::FULL,
     ];
     private const NUMBER_TYPES = [
         'default' => \NumberFormatter::TYPE_DEFAULT,
@@ -121,17 +128,24 @@ final class IntlExtension extends AbstractExtension
     private $numberFormatters = [];
     private $dateFormatterPrototype;
     private $numberFormatterPrototype;
-    private Clock $clock;
+
+    /**
+     * A Closure to use for formatting datetimes in a pretty way, i.e. 'Today 3:37pm', 'Yesterday', etc.
+     * @param \DateTimeInterface $dateTime
+     * @param \IntlDateFormatter $dateFormatter
+     * @return string
+     */
+    private ?\Closure $prettyFormatClosure;
 
     public function __construct(
-            \IntlDateFormatter $dateFormatterPrototype = null,
-            \NumberFormatter $numberFormatterPrototype = null,
-            Clock $clock = null
+        \IntlDateFormatter $dateFormatterPrototype = null,
+        \NumberFormatter $numberFormatterPrototype = null,
+        \Closure $prettyFormatClosure = null
     )
     {
         $this->dateFormatterPrototype = $dateFormatterPrototype;
         $this->numberFormatterPrototype = $numberFormatterPrototype;
-        $this->clock = $clock ?: SystemClock::fromSystemTimezone();
+        $this->prettyFormatClosure = $prettyFormatClosure;
     }
 
     public function getFilters()
@@ -289,14 +303,7 @@ final class IntlExtension extends AbstractExtension
     public function formatDateTime(Environment $env, $date, ?string $dateFormat = null, ?string $timeFormat = null, string $pattern = '', $timezone = null, string $calendar = 'gregorian', string $locale = null): string
     {
         $date = \twig_date_converter($env, $date, $timezone);
-
-        $formatterTimezone = $timezone;
-        if (false === $formatterTimezone) {
-            $formatterTimezone = $date->getTimezone();
-        } else if (is_string($formatterTimezone)) {
-            $formatterTimezone = new \DateTimeZone($timezone);
-        }
-        $formatter = $this->createDateFormatter($locale, $dateFormat, $timeFormat, $pattern, $formatterTimezone, $calendar);
+        $formatter = $this->getFormatterForDate($date, $dateFormat, $timeFormat, $pattern, $timezone, $calendar, $locale);
 
         if (false === $ret = $formatter->format($date)) {
             throw new RuntimeError('Unable to format the given date.');
@@ -323,64 +330,86 @@ final class IntlExtension extends AbstractExtension
         return $this->formatDateTime($env, $date, 'none', $timeFormat, $pattern, $timezone, $calendar, $locale);
     }
 
-    /**
-     * Format days in a pretty way, i.e. "yesterday" or "Wed 15:06" or "12:01" (for today).
-     *
-     * @param \DateTimeInterface|string|null  $date     A date or null to use the current time
-     * @param \DateTimeZone|string|false|null $timezone The target timezone, null to use the default, false to leave unchanged
-     */
     public function formatDateTimePretty(Environment $env, $date, ?string $dateFormat = null, ?string $timeFormat = null, string $pattern = '',  $timezone = null, string $calendar = 'gregorian', string $locale = null): string
     {
-        $now = $this->clock->now();
-        if ($date === null) {
-            return $this->formatTime($env, $now, 'short', '', $timezone, $calendar, $locale);
+        $date = \twig_date_converter($env, $date, $timezone);
+        $formatter = $this->getFormatterForDate($date, $dateFormat, $timeFormat, $pattern, $timezone, $calendar, $locale);
+
+        if ($this->prettyFormatClosure === null) {
+            throw new \RuntimeException('Attempted to use formatDateTimePretty without formatter Closure');
         }
 
-        $refDate = $date;
-        if (is_string($date)) {
-            $refDate = new \DateTimeImmutable($date);
-        }
-
-        // In the future and not the same date
-        if (
-            $refDate > $now &&
-            $refDate->format('Y-m-d') !== $now->format('Y-m-d')
-        ) {
-           return $this->formatDate($env, $refDate, null, 'yyyy-MM-dd', $timezone, $calendar, $locale);
-        }
-
-        $daysAgo = (int)$refDate->diff($now)->format('%a'); // diff in no of days; will return 0 if < 24 hours
-
-        // Today with a valid time: "3:35pm", "14:20"
-        if (
-            $daysAgo === 0 &&                                                           // if today and...
-            (
-                (is_string($date) && str_contains($date, $refDate->format('H:i'))) ||   // the original date was a string with hours OR
-                $refDate->format('H:i') !== '00:00'                                      // it's not midnight
-            )
-        ) {
-            return $this->formatTime($env, $refDate, 'short', '', $timezone, $calendar, $locale);
-        }
-
-        // Today or yesterday: "Today", "Yesterday"
-        // Since RELATIVE_* is not yet available, we return the English word and leave it up to the implementing app to translate.
-        if ($daysAgo === 0) {
-            return 'Today';
-        }
-        if ($daysAgo === 1) {
-            return 'Yesterday';
-        }
-
-        // Day of the week
-        if ($daysAgo > 1 && $daysAgo < 7) {
-            return $this->formatDateTime($env, $refDate, 'none', 'none', 'E', $timezone, $calendar, $locale);
-        }
-
-        // default: yyyy-MM-dd which is ICU for Y-m-d
-        return $this->formatDate($env, $refDate, null, 'yyyy-MM-dd', $timezone, $calendar, $locale);
+        return $this->prettyFormatClosure->call($this, $date, $formatter);
     }
 
-    private function createDateFormatter(?string $locale, ?string $dateFormat, ?string $timeFormat, string $pattern, ?\DateTimeZone $timezone, string $calendar): \IntlDateFormatter
+    /**
+     * Format the date in our opinionated format, with localization if applicable.
+     *
+     * Same day, known time     "1:37 PM"
+     * Same day, unknown time   "today"
+     * Yesterday, known time    "yesterday 1:37 PM"
+     * Yesterday, unknown time  "yesterday"
+     * Within the last 7 days   "Mon", "Tue", etc
+     * Older than 7 days        "2020-03-14"
+     * In the future            "2020-03-28"
+     *
+     * If the date somehow cannot be resolved otherwise, will return default formatting for IntlDateFormatter argument.
+     */
+    public static function getDefaultPrettyFormatClosure(): \Closure {
+        return function (\DateTimeInterface $dateTime, \IntlDateFormatter $formatter) {
+            $now = new \DateTimeImmutable();
+            $daysAgo = (int) $dateTime->diff($now)->format('%r%a'); // creates a negative integer if days in future
+
+            // past week: "Thursday"
+            if ($daysAgo > 1 && $daysAgo < 7) {
+                return (new \IntlDateFormatter(
+                    $formatter->getLocale(), self::DATE_FORMATS['none'], self::DATE_FORMATS['none'],
+                    $formatter->getTimeZone(), $formatter->getCalendar(), 'E'
+                ))->format($dateTime);
+            }
+
+            // way in the past or in the future
+            if ($daysAgo >= 7 || $daysAgo < 0) {
+                return (new \IntlDateFormatter(
+                    $formatter->getLocale(), self::DATE_FORMATS['none'], self::DATE_FORMATS['none'],
+                    $formatter->getTimeZone(), $formatter->getCalendar(), 'yyyy-MM-dd'
+                ))->format($dateTime);
+            }
+
+            // today or yesterday
+            if ($daysAgo === 0 || $daysAgo === 1) {
+                // If we don't know the time just output 'today' or 'yesterday'
+                $dayType = (new \IntlDateFormatter(
+                        $formatter->getLocale(), \IntlDateFormatter::RELATIVE_LONG, self::DATE_FORMATS['none'],
+                        $formatter->getTimeZone(), $formatter->getCalendar(), ''
+                ))->format($dateTime);
+
+                if ($formatter->getTimeType() === self::DATE_FORMATS['none'] || $dateTime->format('H:i') === '00:00') {
+                    return $dayType;
+                }
+
+                // Otherwise, output day type + time.
+                $dayTime = (new \IntlDateFormatter(
+                        $formatter->getLocale(), self::DATE_FORMATS['none'], self::DATE_FORMATS['short'],
+                        $formatter->getTimeZone(), $formatter->getCalendar(), ''
+                ))->format($dateTime);
+
+                // Yesterday
+                if ($daysAgo === 1 || $now->format('Y-m-d') !== $dateTime->format('Y-m-d')) {
+                    return $dayType . ' ' . $dayTime;
+                }
+
+                // Today
+                return $dayTime;
+            }
+
+            // default formatting
+            echo "default\n";
+            return $formatter->format($dateTime);
+        };
+    }
+
+    private function createDateFormatter(?string $locale, ?string $dateFormat, ?string $timeFormat, string $pattern, $timezone, string $calendar): \IntlDateFormatter
     {
         if (null !== $dateFormat && !isset(self::DATE_FORMATS[$dateFormat])) {
             throw new RuntimeError(sprintf('The date format "%s" does not exist, known formats are: "%s".', $dateFormat, implode('", "', array_keys(self::DATE_FORMATS))));
@@ -416,7 +445,7 @@ final class IntlExtension extends AbstractExtension
             }
         }
 
-        $timezoneName = $timezone ? $timezone->getName() : '(none)';
+        $timezoneName = $timezone instanceof \DateTimeZone ? $timezone->getName() : '(none)';
 
         $hash = $locale.'|'.$dateFormatValue.'|'.$timeFormatValue.'|'.$timezoneName.'|'.$calendar.'|'.$pattern;
         if (!isset($this->dateFormatters[$hash])) {
@@ -500,5 +529,14 @@ final class IntlExtension extends AbstractExtension
         }
 
         return $this->numberFormatters[$hash];
+    }
+
+    private function getFormatterForDate(\DateTimeInterface $date, ?string $dateFormat, ?string $timeFormat, string $pattern, $timezone, string $calendar, ?string $locale): \IntlDateFormatter {
+        if (false === $timezone) {
+            $timezone = $date->getTimezone();
+        } else if (is_string($timezone)) {
+            $timezone = new \DateTimeZone($timezone);
+        }
+        return $this->createDateFormatter($locale, $dateFormat, $timeFormat, $pattern, $timezone, $calendar);
     }
 }
