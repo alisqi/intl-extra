@@ -167,6 +167,7 @@ final class IntlExtension extends AbstractExtension
             new TwigFilter('format_date', [$this, 'formatDate'], ['needs_environment' => true]),
             new TwigFilter('format_time', [$this, 'formatTime'], ['needs_environment' => true]),
             new TwigFilter('format_datetime_pretty', [$this, 'formatDateTimePretty'], ['needs_environment' => true]),
+            new TwigFilter('format_date_pretty', [$this, 'formatDatePretty'], ['needs_environment' => true]),
         ];
     }
 
@@ -330,6 +331,11 @@ final class IntlExtension extends AbstractExtension
         return $this->formatDateTime($env, $date, 'none', $timeFormat, $pattern, $timezone, $calendar, $locale);
     }
 
+    public function formatDatePretty(Environment $env, $date, ?string $dateFormat = null, ?string $pattern = '',  $timezone = null, string $calendar = 'gregorian', string $locale = null): string
+    {
+        return $this->formatDateTimePretty($env, $date, $dateFormat, 'none', $pattern, $timezone, $calendar, $locale);
+    }
+
     public function formatDateTimePretty(Environment $env, $date, ?string $dateFormat = null, ?string $timeFormat = null, string $pattern = '',  $timezone = null, string $calendar = 'gregorian', string $locale = null): string
     {
         $date = \twig_date_converter($env, $date, $timezone);
@@ -350,8 +356,8 @@ final class IntlExtension extends AbstractExtension
      * Yesterday, known time    "yesterday 1:37 PM"
      * Yesterday, unknown time  "yesterday"
      * Within the last 7 days   "Mon", "Tue", etc
-     * Older than 7 days        "2020-03-14"
-     * In the future            "2020-03-28"
+     * Older than 7 days        $dateFormat default
+     * In the future            $dateFormat default
      *
      * If the date somehow cannot be resolved otherwise, will return default formatting for IntlDateFormatter argument.
      */
@@ -368,30 +374,22 @@ final class IntlExtension extends AbstractExtension
                 ))->format($dateTime);
             }
 
-            // way in the past or in the future
-            if ($daysAgo >= 7 || $daysAgo < 0) {
-                return (new \IntlDateFormatter(
-                    $formatter->getLocale(), self::DATE_FORMATS['none'], self::DATE_FORMATS['none'],
-                    $formatter->getTimeZone(), $formatter->getCalendar(), 'yyyy-MM-dd'
-                ))->format($dateTime);
-            }
-
             // today or yesterday
             if ($daysAgo === 0 || $daysAgo === 1) {
                 // If we don't know the time just output 'today' or 'yesterday'
                 $dayType = (new \IntlDateFormatter(
-                        $formatter->getLocale(), self::DATE_FORMATS['relative_long'], self::DATE_FORMATS['none'],
-                        $formatter->getTimeZone(), $formatter->getCalendar(), ''
+                    $formatter->getLocale(), self::DATE_FORMATS['relative_long'], self::DATE_FORMATS['none'],
+                    $formatter->getTimeZone(), $formatter->getCalendar(), ''
                 ))->format($dateTime);
 
-                if ($formatter->getTimeType() === self::DATE_FORMATS['none'] || $dateTime->format('H:i') === '00:00') {
+                if ($formatter->getTimeType() === self::DATE_FORMATS['none']) {
                     return $dayType;
                 }
 
                 // Otherwise, output day type + time.
                 $dayTime = (new \IntlDateFormatter(
-                        $formatter->getLocale(), self::DATE_FORMATS['none'], self::DATE_FORMATS['short'],
-                        $formatter->getTimeZone(), $formatter->getCalendar(), ''
+                    $formatter->getLocale(), self::DATE_FORMATS['none'], self::DATE_FORMATS['short'],
+                    $formatter->getTimeZone(), $formatter->getCalendar(), ''
                 ))->format($dateTime);
 
                 // Yesterday
@@ -403,8 +401,11 @@ final class IntlExtension extends AbstractExtension
                 return $dayTime;
             }
 
-            // default formatting
-            return $formatter->format($dateTime);
+            // default formatting without time
+            return (new \IntlDateFormatter(
+                $formatter->getLocale(), $formatter->getDateType(), self::DATE_FORMATS['none'],
+                $formatter->getTimeZone(), $formatter->getCalendar(), $formatter->getPattern()
+            ))->format($dateTime);
         };
     }
 
