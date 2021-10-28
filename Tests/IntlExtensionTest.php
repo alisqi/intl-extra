@@ -111,8 +111,8 @@ class IntlExtensionTest extends TestCase
     {
         $ext = new IntlExtension(
             (new \IntlDateFormatter(
-                $locale, \IntlDateFormatter::FULL, \IntlDateFormatter::FULL,
-                new \DateTimeZone('UTC')
+                $locale, \IntlDateFormatter::MEDIUM, \IntlDateFormatter::FULL,
+                new \DateTimeZone('UTC'), null, 'yyyy-MM-dd'
             )),
             null,
             IntlExtension::getDefaultPrettyFormatClosure()
@@ -120,6 +120,27 @@ class IntlExtensionTest extends TestCase
         $this->twig->addExtension($ext);
 
         $this->twig->setLoader(new ArrayLoader(['test.twig' => "{{ inputDateTime|format_datetime_pretty() }}"]));
+        self::assertEquals($expected, $this->twig->render('test.twig', ['inputDateTime' => $input]));
+    }
+
+    /**
+     * @dataProvider getDatePrettyData
+     *
+     * @param \DateTimeInterface|string|null  $input     A date or null to use the current time
+     */
+    public function testIntlDateFormatterDatePretty(string $locale, $input, string $expected): void
+    {
+        $ext = new IntlExtension(
+            (new \IntlDateFormatter(
+                $locale, \IntlDateFormatter::MEDIUM, \IntlDateFormatter::FULL,
+                    new \DateTimeZone('UTC'), null, 'yyyy-MM-dd'
+            )),
+            null,
+            IntlExtension::getDefaultPrettyFormatClosure()
+        );
+        $this->twig->addExtension($ext);
+
+        $this->twig->setLoader(new ArrayLoader(['test.twig' => "{{ inputDateTime|format_date_pretty() }}"]));
         self::assertEquals($expected, $this->twig->render('test.twig', ['inputDateTime' => $input]));
     }
 
@@ -184,9 +205,7 @@ class IntlExtensionTest extends TestCase
             'future next day'           => ['en', $now->modify('+1 day')->format('Y-m-d H:i:s'), $now->modify('+1 day')->format('Y-m-d')],
             'far future'                => ['en', $now->modify('+1 month')->format('Y-m-d H:i:s'), $now->modify('+1 month')->format('Y-m-d')],
             'today past time'           => ['en', $now->modify('-1 hour')->format('Y-m-d H:i:s'), '12:37 PM'],
-            'today no time'             => ['en', $now->format('Y-m-d'), $php8 ? 'today' : $now->format('F j, Y')],
             'today future time'         => ['en', $now->modify('+1 hour')->format('Y-m-d H:i:s'), '2:37 PM'],
-            'yesterday no time'         => ['en', $now->modify('-1 day')->format('Y-m-d'), $php8 ? 'yesterday' : $now->modify('-1 day')->format('F j, Y')],
             'this week'                 => ['en', $now->modify('-3 days')->format('Y-m-d'), $now->modify('-3 days')->format('D')],
             'older than past week'      => ['en', $now->modify('-14 days')->format('Y-m-d'), $now->modify('-14 days')->format('Y-m-d')],
             'handle datetime obj'       => ['en', $now, '1:37 PM'],
@@ -197,6 +216,17 @@ class IntlExtensionTest extends TestCase
             'obj older than past week'  => ['en', $now->modify('-14 days'), $now->modify('-14 days')->format('Y-m-d')],
             'french time'               => ['fr', $now, '13:37'],
             'german date'               => ['de', $now->modify('-12 days')->format('Y-m-d'), $now->modify('-12 days')->format('Y-m-d')],
+        ];
+    }
+
+    public function getDatePrettyData(): array {
+        $now = (new \DateTimeImmutable())->setTime(13, 37, 00);
+
+        $php8 = PHP_MAJOR_VERSION >= 8;
+        // description -> [now, input, expected]
+        return [
+            'today no time'             => ['en', $now->format('Y-m-d'), $php8 ? 'today' : $now->format('F j, Y')],
+            'yesterday no time'         => ['en', $now->modify('-1 day')->format('Y-m-d'), $php8 ? 'yesterday' : $now->modify('-1 day')->format('F j, Y')],
         ];
     }
 }
