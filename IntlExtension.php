@@ -404,7 +404,6 @@ final class IntlExtension extends AbstractExtension
             }
 
             // default formatting
-            echo "default\n";
             return $formatter->format($dateTime);
         };
     }
