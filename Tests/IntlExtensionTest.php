@@ -107,11 +107,11 @@ class IntlExtensionTest extends TestCase
      *
      * @param \DateTimeInterface|string|null  $input     A date or null to use the current time
      */
-    public function testIntlDateFormatterDateTimePretty(\DateTimeImmutable $now, $input, string $expected): void
+    public function testIntlDateFormatterDateTimePretty(string $locale, $input, string $expected): void
     {
         $ext = new IntlExtension(
             (new \IntlDateFormatter(
-                'en', \IntlDateFormatter::FULL, \IntlDateFormatter::FULL,
+                $locale, \IntlDateFormatter::FULL, \IntlDateFormatter::FULL,
                 new \DateTimeZone('UTC')
             )),
             null,
@@ -120,7 +120,7 @@ class IntlExtensionTest extends TestCase
         $this->twig->addExtension($ext);
 
         $this->twig->setLoader(new ArrayLoader(['test.twig' => "{{ inputDateTime|format_datetime_pretty() }}"]));
-        self::assertStringContainsString($expected, $this->twig->render('test.twig', ['inputDateTime' => $input]));
+        self::assertEquals($expected, $this->twig->render('test.twig', ['inputDateTime' => $input]));
     }
 
     public function getIntlDateFormatterData(): array {
@@ -177,23 +177,26 @@ class IntlExtensionTest extends TestCase
     public function getDateTimePrettyData(): array {
         $now = (new \DateTimeImmutable())->setTime(13, 37, 00);
 
+        $php8 = PHP_MAJOR_VERSION >= 8;
         // description -> [now, input, expected]
         return [
-            'convert string datetime'   => [$now, $now->format('Y-m-d H:i:s'), '1:37 PM'],
-            'future next day'           => [$now, $now->modify('+1 day')->format('Y-m-d H:i:s'), $now->modify('+1 day')->format('Y-m-d')],
-            'far future'                => [$now, $now->modify('+1 month')->format('Y-m-d H:i:s'), $now->modify('+1 month')->format('Y-m-d')],
-            'today past time'           => [$now, $now->modify('-1 hour')->format('Y-m-d H:i:s'), '12:37 PM'],
-            'today no time'             => [$now, $now->format('Y-m-d'), 'today'],
-            'today future time'         => [$now, $now->modify('+1 hour')->format('Y-m-d H:i:s'), '2:37 PM'],
-            'yesterday no time'         => [$now, $now->modify('-1 day')->format('Y-m-d'), 'yesterday'],
-            'this week'                 => [$now, $now->modify('-3 days')->format('Y-m-d'), $now->modify('-3 days')->format('D')],
-            'older than past week'      => [$now, $now->modify('-14 days')->format('Y-m-d'), $now->modify('-14 days')->format('Y-m-d')],
-            'handle datetime obj'       => [$now, $now, '1:37 PM'],
-            'obj future next day '      => [$now, $now->modify('+1 day'), $now->modify('+1 day')->format('Y-m-d')],
-            'obj today past time'       => [$now, $now->modify('-2 hours'), '11:37 AM'],
-            'obj yesterday'             => [$now, $now->modify('-1 day'), 'yesterday 1:37 PM'],
-            'obj this week'             => [$now, $now->modify('-3 days'),  $now->modify('-3 days')->format('D')],
-            'obj older than past week'  => [$now, $now->modify('-14 days'), $now->modify('-14 days')->format('Y-m-d')],
+            'convert string datetime'   => ['en', $now->format('Y-m-d H:i:s'), '1:37 PM'],
+            'future next day'           => ['en', $now->modify('+1 day')->format('Y-m-d H:i:s'), $now->modify('+1 day')->format('Y-m-d')],
+            'far future'                => ['en', $now->modify('+1 month')->format('Y-m-d H:i:s'), $now->modify('+1 month')->format('Y-m-d')],
+            'today past time'           => ['en', $now->modify('-1 hour')->format('Y-m-d H:i:s'), '12:37 PM'],
+            'today no time'             => ['en', $now->format('Y-m-d'), $php8 ? 'today' : $now->format('F j, Y')],
+            'today future time'         => ['en', $now->modify('+1 hour')->format('Y-m-d H:i:s'), '2:37 PM'],
+            'yesterday no time'         => ['en', $now->modify('-1 day')->format('Y-m-d'), $php8 ? 'yesterday' : $now->modify('-1 day')->format('F j, Y')],
+            'this week'                 => ['en', $now->modify('-3 days')->format('Y-m-d'), $now->modify('-3 days')->format('D')],
+            'older than past week'      => ['en', $now->modify('-14 days')->format('Y-m-d'), $now->modify('-14 days')->format('Y-m-d')],
+            'handle datetime obj'       => ['en', $now, '1:37 PM'],
+            'obj future next day '      => ['en', $now->modify('+1 day'), $now->modify('+1 day')->format('Y-m-d')],
+            'obj today past time'       => ['en', $now->modify('-2 hours'), '11:37 AM'],
+            'obj yesterday'             => ['en', $now->modify('-1 day'), $php8 ? 'yesterday 1:37 PM' : $now->modify('-1 day')->format('F j, Y g:i A')],
+            'obj this week'             => ['en', $now->modify('-3 days'),  $now->modify('-3 days')->format('D')],
+            'obj older than past week'  => ['en', $now->modify('-14 days'), $now->modify('-14 days')->format('Y-m-d')],
+            'french time'               => ['fr', $now, '13:37'],
+            'german date'               => ['de', $now->modify('-12 days')->format('Y-m-d'), $now->modify('-12 days')->format('Y-m-d')],
         ];
     }
 }
