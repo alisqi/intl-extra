@@ -363,8 +363,9 @@ final class IntlExtension extends AbstractExtension
      */
     public static function getDefaultPrettyFormatClosure(): \Closure {
         return function (\DateTimeInterface $dateTime, \IntlDateFormatter $formatter) {
-            $now = new \DateTimeImmutable();
-            $daysAgo = (int) $dateTime->diff($now)->format('%r%a'); // creates a negative integer if days in future
+            $date = new \DateTimeImmutable($dateTime->format('Y-m-d'));
+            $now = new \DateTimeImmutable('today');
+            $daysAgo = (int)$date->diff($now)->format('%r%a');
 
             // past week: "Thursday"
             if ($daysAgo > 1 && $daysAgo < 7) {
@@ -393,7 +394,7 @@ final class IntlExtension extends AbstractExtension
                 ))->format($dateTime);
 
                 // Yesterday
-                if ($daysAgo === 1 || $now->format('Y-m-d') !== $dateTime->format('Y-m-d')) {
+                if ($daysAgo === 1) {
                     return $dayType . ' ' . $dayTime;
                 }
 
