@@ -370,7 +370,7 @@ final class IntlExtension extends AbstractExtension
             if ($daysAgo > 1 && $daysAgo < 7) {
                 return (new \IntlDateFormatter(
                     $formatter->getLocale(), self::DATE_FORMATS['none'], self::DATE_FORMATS['none'],
-                    $formatter->getTimeZone(), $formatter->getCalendar(), 'E'
+                    $formatter->getTimeZone(), $formatter->getCalendar(), 'EEEE'
                 ))->format($dateTime);
             }
 
