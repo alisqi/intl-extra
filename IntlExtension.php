@@ -11,8 +11,6 @@
 
 namespace Twig\Extra\Intl;
 
-use Lcobucci\Clock\Clock;
-use Lcobucci\Clock\SystemClock;
 use Symfony\Component\Intl\Countries;
 use Symfony\Component\Intl\Currencies;
 use Symfony\Component\Intl\Exception\MissingResourceException;
@@ -346,67 +344,6 @@ final class IntlExtension extends AbstractExtension
         }
 
         return $this->prettyFormatClosure->call($this, $date, $formatter);
-    }
-
-    /**
-     * Format the date in our opinionated format, with localization if applicable.
-     *
-     * Same day, known time     "1:37 PM"
-     * Same day, unknown time   "today"
-     * Yesterday, known time    "yesterday 1:37 PM"
-     * Yesterday, unknown time  "yesterday"
-     * Within the last 7 days   "Mon", "Tue", etc
-     * Older than 7 days        $dateFormat default
-     * In the future            $dateFormat default
-     *
-     * If the date somehow cannot be resolved otherwise, will return default formatting for IntlDateFormatter argument.
-     */
-    public static function getDefaultPrettyFormatClosure(): \Closure {
-        return function (\DateTimeInterface $dateTime, \IntlDateFormatter $formatter) {
-            $now = new \DateTimeImmutable();
-            $daysAgo = (int) $dateTime->diff($now)->format('%r%a'); // creates a negative integer if days in future
-
-            // past week: "Thursday"
-            if ($daysAgo > 1 && $daysAgo < 7) {
-                return (new \IntlDateFormatter(
-                    $formatter->getLocale(), self::DATE_FORMATS['none'], self::DATE_FORMATS['none'],
-                    $formatter->getTimeZone(), $formatter->getCalendar(), 'E'
-                ))->format($dateTime);
-            }
-
-            // today or yesterday
-            if ($daysAgo === 0 || $daysAgo === 1) {
-                // If we don't know the time just output 'today' or 'yesterday'
-                $dayType = (new \IntlDateFormatter(
-                    $formatter->getLocale(), self::DATE_FORMATS['relative_long'], self::DATE_FORMATS['none'],
-                    $formatter->getTimeZone(), $formatter->getCalendar(), ''
-                ))->format($dateTime);
-
-                if ($formatter->getTimeType() === self::DATE_FORMATS['none']) {
-                    return $dayType;
-                }
-
-                // Otherwise, output day type + time.
-                $dayTime = (new \IntlDateFormatter(
-                    $formatter->getLocale(), self::DATE_FORMATS['none'], self::DATE_FORMATS['short'],
-                    $formatter->getTimeZone(), $formatter->getCalendar(), ''
-                ))->format($dateTime);
-
-                // Yesterday
-                if ($daysAgo === 1 || $now->format('Y-m-d') !== $dateTime->format('Y-m-d')) {
-                    return $dayType . ' ' . $dayTime;
-                }
-
-                // Today
-                return $dayTime;
-            }
-
-            // default formatting without time
-            return (new \IntlDateFormatter(
-                $formatter->getLocale(), $formatter->getDateType(), self::DATE_FORMATS['none'],
-                $formatter->getTimeZone(), $formatter->getCalendar(), $formatter->getPattern()
-            ))->format($dateTime);
-        };
     }
 
     private function createDateFormatter(?string $locale, ?string $dateFormat, ?string $timeFormat, string $pattern, ?\DateTimeZone $timezone, string $calendar): \IntlDateFormatter
