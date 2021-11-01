@@ -15,6 +15,8 @@ This package is a Twig extension that provides the following:
  * [`format_datetime`][10] filter: formats a date time;
  * [`format_date`][11] filter: formats a date;
  * [`format_time`][12] filter: formats a time.
+ * [`format_datetime_pretty`](#Using pretty formatting) filter: formats a date to time of day, 'Today', 'Yesterday', or a date.
+ * [`format_date_pretty`](#Using pretty formatting) filter: formats a date to 'Today', 'Yesterday', or a date.
 
 [1]: https://twig.symfony.com/country_name
 [2]: https://twig.symfony.com/currency_name
@@ -36,5 +38,65 @@ use the 'prototype' values of `IntlDateFormatter` when `IntlExtension` is instan
 
 See: [https://github.com/twigphp/Twig/issues/3568](https://github.com/twigphp/Twig/issues/3568)
 
-Added the following functions:
-* `format_datetime_pretty` filter: formats a date to time of day, 'Today', 'Yesterday', or a date.
+### Using pretty formatting
+
+In order to use the `format_datetime_pretty` and `format_date_pretty` filters, you must supply the `IntlExtension` 
+constructor with a `Closure` that returns the 'pretty' formatted date. This way you can apply your opinionated format and any custom
+translations if your application is not yet on PHP8.
+
+Here is an example Closure that you can use:
+
+```php
+/**
+ * Same day                 "today at 1:37 PM"
+ * Yesterday                "yesterday at 1:37 PM"
+ * Within the last 7 days   "Monday", "Tuesday", etc
+ * Older than 7 days        $dateFormat default
+ * In the future            $dateFormat default
+ *
+ * If the date somehow cannot be resolved otherwise, will return default formatting for IntlDateFormatter argument.
+ */
+$closure = function (\DateTimeInterface $dateTime, \IntlDateFormatter $formatter) 
+{
+    $date = new \DateTimeImmutable($dateTime->format('Y-m-d'));
+    $now = new \DateTimeImmutable('today');
+    $daysAgo = (int)$date->diff($now)->format('%r%a');
+
+    // past week: "Thursday"
+    if ($daysAgo > 1 && $daysAgo < 7) {
+        return (new \IntlDateFormatter(
+            $formatter->getLocale(), self::DATE_FORMATS['none'], self::DATE_FORMATS['none'],
+            $formatter->getTimeZone(), $formatter->getCalendar(), 'EEEE'
+        ))->format($dateTime);
+    }
+
+    // today or yesterday with time
+    // This will return date format 'short' if PHP version is < 8.
+    if ($daysAgo === 0 || $daysAgo === 1) {
+        return (new \IntlDateFormatter(
+            $formatter->getLocale(), self::DATE_FORMATS['relative_short'], self::DATE_FORMATS['short'],
+            $formatter->getTimeZone(), $formatter->getCalendar(), ''
+        ))->format($dateTime);
+    }
+
+    // default formatting without time
+    return (new \IntlDateFormatter(
+        $formatter->getLocale(), $formatter->getDateType(), self::DATE_FORMATS['none'],
+        $formatter->getTimeZone(), $formatter->getCalendar(), $formatter->getPattern()
+    ))->format($dateTime);
+};
+
+// usage
+$intlExtension = new IntlExtension(
+    new IntlExtension(
+        new \IntlDateFormatter(
+            'nl',
+            \IntlDateFormatter::FULL,
+            \IntlDateFormatter::FULL,
+            new \DateTimeZone('Europe/Amsterdam')
+        ),
+        new \NumberFormatter('nl', \NumberFormatter::DECIMAL),
+        $closure
+    );
+);
+```
