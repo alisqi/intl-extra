@@ -48,7 +48,8 @@ In order to use the `format_datetime_pretty` and `format_date_pretty` filters, y
 constructor with a `Closure` that returns the 'pretty' formatted date. This way you can apply your opinionated format and any custom
 translations if your application is not yet on PHP8.
 
-Here is an example Closure that you can use:
+Here is an example Closure that you can use (note that the `IntlDateFormatter::RELATIVE_*` constants are only available on PHP8
+and will cause an exception if used in PHP7.4 or older.)
 
 ```php
 /**
@@ -69,23 +70,22 @@ $closure = function (\DateTimeInterface $dateTime, \IntlDateFormatter $formatter
     // past week: "Thursday"
     if ($daysAgo > 1 && $daysAgo < 7) {
         return (new \IntlDateFormatter(
-            $formatter->getLocale(), self::DATE_FORMATS['none'], self::DATE_FORMATS['none'],
+            $formatter->getLocale(), IntlDateFormatter::NONE,  IntlDateFormatter::NONE,
             $formatter->getTimeZone(), $formatter->getCalendar(), 'EEEE'
         ))->format($dateTime);
     }
 
     // today or yesterday with time
-    // This will return date format 'short' if PHP version is < 8.
     if ($daysAgo === 0 || $daysAgo === 1) {
         return (new \IntlDateFormatter(
-            $formatter->getLocale(), self::DATE_FORMATS['relative_short'], self::DATE_FORMATS['short'],
+            $formatter->getLocale(),  IntlDateFormatter::RELATIVE_SHORT, IntlDateFormatter::NONE,
             $formatter->getTimeZone(), $formatter->getCalendar(), ''
         ))->format($dateTime);
     }
 
     // default formatting without time
     return (new \IntlDateFormatter(
-        $formatter->getLocale(), $formatter->getDateType(), self::DATE_FORMATS['none'],
+        $formatter->getLocale(), $formatter->getDateType(), IntlDateFormatter::NONE,
         $formatter->getTimeZone(), $formatter->getCalendar(), $formatter->getPattern()
     ))->format($dateTime);
 };
