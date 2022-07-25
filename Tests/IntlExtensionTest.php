@@ -146,7 +146,7 @@ class IntlExtensionTest extends TestCase
         return [
             ["'medium', locale='en', timezone='Europe/Amsterdam'", '2020-02-22 13:37:30', 'Feb 22, 2020, 2:37:30 PM Central European Standard Time'],
             ["'medium', null, locale='en', timezone='Europe/Amsterdam'", '2020-02-22 13:37:30', 'Feb 22, 2020, 2:37:30 PM Central European Standard Time'],
-            ["dateFormat='medium', timeFormat=null", '2020-02-22 13:37:30', '22 feb 2020 9:37:30 (hora estándar del Atlántico)'],
+            ["dateFormat='medium', timeFormat=null", '2020-02-22 13:37:30', '22 feb 2020, 9:37:30 (hora estándar del Atlántico)'],
             ["null, 'medium', locale='en', timezone='Europe/Amsterdam'", '2020-02-22 13:37:30', 'Saturday, February 22, 2020 at 2:37:30 PM'],
             ["dateFormat=null, timeFormat='medium', locale='en', timezone='Europe/Amsterdam'", '2020-02-22 13:37:30', 'Saturday, February 22, 2020 at 2:37:30 PM'],
             ["dateFormat=null, timeFormat='medium'", '2020-02-22 13:37:30', 'sábado, 22 de febrero de 2020, 9:37:30'],

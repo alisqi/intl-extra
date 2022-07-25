@@ -1,7 +1,11 @@
 Twig Intl Extension
 ===================
 
-This package is a Twig extension that provides the following:
+## Introduction
+
+This Twig extension provides a number of filters to format dates, times, country and currency information according to given locale and language settings.
+
+## Filters
 
  * [`country_name`][1] filter: returns the country name given its two-letter/five-letter code;
  * [`currency_name`][2] filter: returns the currency name given its three-letter code;
@@ -15,8 +19,8 @@ This package is a Twig extension that provides the following:
  * [`format_datetime`][10] filter: formats a date time;
  * [`format_date`][11] filter: formats a date;
  * [`format_time`][12] filter: formats a time.
- * [`format_datetime_pretty`](#Using pretty formatting) filter: formats a date to time of day, 'Today', 'Yesterday', or a date.
- * [`format_date_pretty`](#Using pretty formatting) filter: formats a date to 'Today', 'Yesterday', or a date.
+ * [`format_datetime_pretty`](#using-pretty-formatting) filter: formats a date to time of day, 'Today', 'Yesterday', or a date.
+ * [`format_date_pretty`](#using-pretty-formatting) filter: formats a date to 'Today', 'Yesterday', or a date.
 
 [1]: https://twig.symfony.com/country_name
 [2]: https://twig.symfony.com/currency_name
@@ -38,13 +42,14 @@ use the 'prototype' values of `IntlDateFormatter` when `IntlExtension` is instan
 
 See: [https://github.com/twigphp/Twig/issues/3568](https://github.com/twigphp/Twig/issues/3568)
 
-### Using pretty formatting
+## Using pretty formatting
 
 In order to use the `format_datetime_pretty` and `format_date_pretty` filters, you must supply the `IntlExtension` 
 constructor with a `Closure` that returns the 'pretty' formatted date. This way you can apply your opinionated format and any custom
 translations if your application is not yet on PHP8.
 
-Here is an example Closure that you can use:
+Here is an example Closure that you can use (note that the `IntlDateFormatter::RELATIVE_*` constants are only available on PHP8
+and will cause an exception if used in PHP7.4 or older.)
 
 ```php
 /**
@@ -65,23 +70,22 @@ $closure = function (\DateTimeInterface $dateTime, \IntlDateFormatter $formatter
     // past week: "Thursday"
     if ($daysAgo > 1 && $daysAgo < 7) {
         return (new \IntlDateFormatter(
-            $formatter->getLocale(), self::DATE_FORMATS['none'], self::DATE_FORMATS['none'],
+            $formatter->getLocale(), IntlDateFormatter::NONE,  IntlDateFormatter::NONE,
             $formatter->getTimeZone(), $formatter->getCalendar(), 'EEEE'
         ))->format($dateTime);
     }
 
     // today or yesterday with time
-    // This will return date format 'short' if PHP version is < 8.
     if ($daysAgo === 0 || $daysAgo === 1) {
         return (new \IntlDateFormatter(
-            $formatter->getLocale(), self::DATE_FORMATS['relative_short'], self::DATE_FORMATS['short'],
+            $formatter->getLocale(),  IntlDateFormatter::RELATIVE_SHORT, IntlDateFormatter::NONE,
             $formatter->getTimeZone(), $formatter->getCalendar(), ''
         ))->format($dateTime);
     }
 
     // default formatting without time
     return (new \IntlDateFormatter(
-        $formatter->getLocale(), $formatter->getDateType(), self::DATE_FORMATS['none'],
+        $formatter->getLocale(), $formatter->getDateType(), IntlDateFormatter::NONE,
         $formatter->getTimeZone(), $formatter->getCalendar(), $formatter->getPattern()
     ))->format($dateTime);
 };
